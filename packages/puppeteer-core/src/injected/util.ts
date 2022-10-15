@@ -35,8 +35,6 @@ export const createFunction = (
   return fn;
 };
 
-const HIDDEN_VISIBILITY_VALUES = ['hidden', 'collapse'];
-
 /**
  * @internal
  */
@@ -56,20 +54,11 @@ export const checkVisibility = (
 
   const style = window.getComputedStyle(element);
   const isVisible =
-    style &&
-    !HIDDEN_VISIBILITY_VALUES.includes(style.visibility) &&
-    isBoundingBoxVisible(element);
+    style && style.visibility !== 'hidden' && isBoundingBoxVisible(element);
   return visible === isVisible ? node : false;
 };
 
 function isBoundingBoxVisible(element: Element): boolean {
   const rect = element.getBoundingClientRect();
-  return (
-    rect.width > 0 &&
-    rect.height > 0 &&
-    rect.right > 0 &&
-    rect.bottom > 0 &&
-    rect.left < self.innerWidth &&
-    rect.top < self.innerHeight
-  );
+  return !!(rect.top || rect.bottom || rect.width || rect.height);
 }

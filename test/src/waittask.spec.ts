@@ -18,7 +18,6 @@ import expect from 'expect';
 import {TimeoutError} from 'puppeteer';
 import {isErrorLike} from 'puppeteer-core/internal/util/ErrorLike.js';
 import {
-  createTimeout,
   getTestState,
   setupTestBrowserHooks,
   setupTestPageAndContextHooks,
@@ -480,186 +479,113 @@ describe('waittask specs', function () {
       await waitForSelector;
       expect(boxFound).toBe(true);
     });
-    it('should wait for element to be visible (display)', async () => {
+    it('should wait for visible', async () => {
       const {page} = getTestState();
 
-      const promise = page.waitForSelector('div', {visible: true});
-      await page.setContent('<div style="display: none">text</div>');
-      const element = await page.evaluateHandle(() => {
-        return document.getElementsByTagName('div')[0]!;
+      let divFound = false;
+      const waitForSelector = page
+        .waitForSelector('div', {visible: true})
+        .then(() => {
+          return (divFound = true);
+        });
+      await page.setContent(
+        `<div style='display: none; visibility: hidden;'>1</div>`
+      );
+      expect(divFound).toBe(false);
+      await page.evaluate(() => {
+        return document.querySelector('div')?.style.removeProperty('display');
       });
-      await expect(
-        Promise.race([promise, createTimeout(40)])
-      ).resolves.toBeFalsy();
-      await element.evaluate(e => {
-        e.style.removeProperty('display');
+      expect(divFound).toBe(false);
+      await page.evaluate(() => {
+        return document
+          .querySelector('div')
+          ?.style.removeProperty('visibility');
       });
-      await expect(promise).resolves.toBeTruthy();
+      expect(await waitForSelector).toBe(true);
+      expect(divFound).toBe(true);
     });
-    it('should wait for element to be visible (visibility)', async () => {
+    it('should wait for visible recursively', async () => {
       const {page} = getTestState();
 
-      const promise = page.waitForSelector('div', {visible: true});
-      await page.setContent('<div style="visibility: hidden">text</div>');
-      const element = await page.evaluateHandle(() => {
-        return document.getElementsByTagName('div')[0]!;
-      });
-      await expect(
-        Promise.race([promise, createTimeout(40)])
-      ).resolves.toBeFalsy();
-      await element.evaluate(e => {
-        e.style.setProperty('visibility', 'collapse');
-      });
-      await expect(
-        Promise.race([promise, createTimeout(40)])
-      ).resolves.toBeFalsy();
-      await element.evaluate(e => {
-        e.style.removeProperty('visibility');
-      });
-      await expect(promise).resolves.toBeTruthy();
-    });
-    it('should wait for element to be visible (bounding box)', async () => {
-      const {page} = getTestState();
-
-      const promise = page.waitForSelector('div', {visible: true});
-      await page.setContent('<div style="width: 0">text</div>');
-      const element = await page.evaluateHandle(() => {
-        return document.getElementsByTagName('div')[0]!;
-      });
-      await expect(
-        Promise.race([promise, createTimeout(40)])
-      ).resolves.toBeFalsy();
-      await element.evaluate(e => {
-        e.style.setProperty('height', '0');
-        e.style.removeProperty('width');
-      });
-      await expect(
-        Promise.race([promise, createTimeout(40)])
-      ).resolves.toBeFalsy();
-      await element.evaluate(e => {
-        e.style.setProperty('position', 'absolute');
-        e.style.setProperty('right', '100vw');
-        e.style.removeProperty('height');
-      });
-      await expect(
-        Promise.race([promise, createTimeout(40)])
-      ).resolves.toBeFalsy();
-      await element.evaluate(e => {
-        e.style.setProperty('left', '100vw');
-        e.style.removeProperty('right');
-      });
-      await expect(
-        Promise.race([promise, createTimeout(40)])
-      ).resolves.toBeFalsy();
-      await element.evaluate(e => {
-        e.style.setProperty('top', '100vh');
-        e.style.removeProperty('left');
-      });
-      await expect(
-        Promise.race([promise, createTimeout(40)])
-      ).resolves.toBeFalsy();
-      await element.evaluate(e => {
-        e.style.setProperty('bottom', '100vh');
-        e.style.removeProperty('top');
-      });
-      await expect(
-        Promise.race([promise, createTimeout(40)])
-      ).resolves.toBeFalsy();
-      await element.evaluate(e => {
-        // Just peeking
-        e.style.setProperty('bottom', '99vh');
-      });
-      await expect(promise).resolves.toBeTruthy();
-    });
-    it('should wait for element to be visible recursively', async () => {
-      const {page} = getTestState();
-
-      const promise = page.waitForSelector('div#inner', {
-        visible: true,
-      });
+      let divVisible = false;
+      const waitForSelector = page
+        .waitForSelector('div#inner', {visible: true})
+        .then(() => {
+          return (divVisible = true);
+        });
       await page.setContent(
         `<div style='display: none; visibility: hidden;'><div id="inner">hi</div></div>`
       );
-      const element = await page.evaluateHandle(() => {
-        return document.getElementsByTagName('div')[0]!;
+      expect(divVisible).toBe(false);
+      await page.evaluate(() => {
+        return document.querySelector('div')?.style.removeProperty('display');
       });
-      await expect(
-        Promise.race([promise, createTimeout(40)])
-      ).resolves.toBeFalsy();
-      await element.evaluate(e => {
-        return e.style.removeProperty('display');
+      expect(divVisible).toBe(false);
+      await page.evaluate(() => {
+        return document
+          .querySelector('div')
+          ?.style.removeProperty('visibility');
       });
-      await expect(
-        Promise.race([promise, createTimeout(40)])
-      ).resolves.toBeFalsy();
-      await element.evaluate(e => {
-        return e.style.removeProperty('visibility');
-      });
-      await expect(promise).resolves.toBeTruthy();
+      expect(await waitForSelector).toBe(true);
+      expect(divVisible).toBe(true);
     });
-    it('should wait for element to be hidden (visibility)', async () => {
+    it('hidden should wait for visibility: hidden', async () => {
       const {page} = getTestState();
 
-      const promise = page.waitForSelector('div', {hidden: true});
-      await page.setContent(`<div style='display: block;'>text</div>`);
-      const element = await page.evaluateHandle(() => {
-        return document.getElementsByTagName('div')[0]!;
+      let divHidden = false;
+      await page.setContent(`<div style='display: block;'></div>`);
+      const waitForSelector = page
+        .waitForSelector('div', {hidden: true})
+        .then(() => {
+          return (divHidden = true);
+        });
+      await page.waitForSelector('div'); // do a round trip
+      expect(divHidden).toBe(false);
+      await page.evaluate(() => {
+        return document
+          .querySelector('div')
+          ?.style.setProperty('visibility', 'hidden');
       });
-      await expect(
-        Promise.race([promise, createTimeout(40)])
-      ).resolves.toBeFalsy();
-      await element.evaluate(e => {
-        return e.style.setProperty('visibility', 'hidden');
-      });
-      await expect(promise).resolves.toBeTruthy();
+      expect(await waitForSelector).toBe(true);
+      expect(divHidden).toBe(true);
     });
-    it('should wait for element to be hidden (display)', async () => {
+    it('hidden should wait for display: none', async () => {
       const {page} = getTestState();
 
-      const promise = page.waitForSelector('div', {hidden: true});
-      await page.setContent(`<div style='display: block;'>text</div>`);
-      const element = await page.evaluateHandle(() => {
-        return document.getElementsByTagName('div')[0]!;
+      let divHidden = false;
+      await page.setContent(`<div style='display: block;'></div>`);
+      const waitForSelector = page
+        .waitForSelector('div', {hidden: true})
+        .then(() => {
+          return (divHidden = true);
+        });
+      await page.waitForSelector('div'); // do a round trip
+      expect(divHidden).toBe(false);
+      await page.evaluate(() => {
+        return document
+          .querySelector('div')
+          ?.style.setProperty('display', 'none');
       });
-      await expect(
-        Promise.race([promise, createTimeout(40)])
-      ).resolves.toBeFalsy();
-      await element.evaluate(e => {
-        return e.style.setProperty('display', 'none');
-      });
-      await expect(promise).resolves.toBeTruthy();
+      expect(await waitForSelector).toBe(true);
+      expect(divHidden).toBe(true);
     });
-    it('should wait for element to be hidden (bounding box)', async () => {
+    it('hidden should wait for removal', async () => {
       const {page} = getTestState();
 
-      const promise = page.waitForSelector('div', {hidden: true});
-      await page.setContent('<div>text</div>');
-      const element = await page.evaluateHandle(() => {
-        return document.getElementsByTagName('div')[0]!;
+      await page.setContent(`<div></div>`);
+      let divRemoved = false;
+      const waitForSelector = page
+        .waitForSelector('div', {hidden: true})
+        .then(() => {
+          return (divRemoved = true);
+        });
+      await page.waitForSelector('div'); // do a round trip
+      expect(divRemoved).toBe(false);
+      await page.evaluate(() => {
+        return document.querySelector('div')?.remove();
       });
-      await expect(
-        Promise.race([promise, createTimeout(40)])
-      ).resolves.toBeFalsy();
-      await element.evaluate(e => {
-        e.style.setProperty('height', '0');
-      });
-      await expect(promise).resolves.toBeTruthy();
-    });
-    it('should wait for element to be hidden (removal)', async () => {
-      const {page} = getTestState();
-
-      const promise = page.waitForSelector('div', {hidden: true});
-      await page.setContent(`<div>text</div>`);
-      const element = await page.evaluateHandle(() => {
-        return document.getElementsByTagName('div')[0]!;
-      });
-      await expect(
-        Promise.race([promise, createTimeout(40, true)])
-      ).resolves.toBeTruthy();
-      await element.evaluate(e => {
-        e.remove();
-      });
-      await expect(promise).resolves.toBeFalsy();
+      expect(await waitForSelector).toBe(true);
+      expect(divRemoved).toBe(true);
     });
     it('should return null if waiting to hide non-existing element', async () => {
       const {page} = getTestState();
@@ -684,7 +610,7 @@ describe('waittask specs', function () {
     it('should have an error message specifically for awaiting an element to be hidden', async () => {
       const {page} = getTestState();
 
-      await page.setContent(`<div>text</div>`);
+      await page.setContent(`<div></div>`);
       let error!: Error;
       await page
         .waitForSelector('div', {hidden: true, timeout: 10})
@@ -800,7 +726,7 @@ describe('waittask specs', function () {
       const {page} = getTestState();
 
       let divHidden = false;
-      await page.setContent(`<div style='display: block;'>text</div>`);
+      await page.setContent(`<div style='display: block;'></div>`);
       const waitForXPath = page
         .waitForXPath('//div', {hidden: true})
         .then(() => {
